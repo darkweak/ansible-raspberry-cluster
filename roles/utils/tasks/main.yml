@@ -1,0 +1,14 @@
+---
+- name: Populate /etc/hosts file
+  become: yes
+  template:
+    src: "hosts.j2"
+    dest: "/etc/hosts"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    mode: 0755
+
+- name: Set hostname
+  become: yes
+  hostname:
+    name: "{{ type }}{{ groups[type].index(inventory_hostname) }}"

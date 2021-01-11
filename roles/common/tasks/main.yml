@@ -1,0 +1,85 @@
+---
+- name: try login as pi if exists
+  local_action: command sshpass -p raspberry ssh -q -o ConnectTimeout=3 pi@{{ inventory_hostname }} 'echo ok'
+  ignore_errors: yes
+  register: pi_not_exists
+
+- name: Set ansible ssh user as pi if exists
+  set_fact:
+    ansible_user: pi
+    ansible_ssh_pass: raspberry
+  when: not pi_not_exists
+
+- name: "Set ansible ssh user as {{ user }} if pi not exists"
+  set_fact:
+    ansible_user: "{{ user }}"
+  when: pi_not_exists
+
+- name: Use python3 for pi user
+  lineinfile:
+    path=/home/pi/.bashrc
+    line="alias python='/usr/bin/python3'"
+    regexp='^alias python='/usr/bin/python3'$'
+    state=present
+    insertafter=EOF
+    create=True
+  when: not pi_not_exists
+
+- name: Source bashrc
+  shell: source /home/pi/.bashrc
+  args:
+    executable: /bin/bash
+  when: not pi_not_exists
+
+- name: User setup
+  user: name={{ user }} comment="New user" shell=/usr/bin/bash
+  when: user is defined
+  register: not_exists_user
+
+- name: SSH setup
+  become: yes
+  authorized_key: user={{ user }} key="{{ lookup('file', '~/.ssh/sylvain.pub') }}"
+  when: user is defined and not_exists_user
+
+- name: Add user to sudoers group
+  become: yes
+  template: src=templates/sudoers.j2 dest=/etc/sudoers.d/{{ user }}-sudoer validate='visudo -cf %s'
+  when: user is defined
+
+- name: reset ssh user
+  set_fact:
+    ansible_user: "{{ user }}"
+    ansible_ssh_pass: ""
+
+- name: reset ssh connection
+  meta: reset_connection
+
+- name: "Use python3 for {{ user }} user"
+  lineinfile:
+    path=/home/{{ user }}/.bashrc
+    line="alias python='/usr/bin/python3'"
+    regexp='^alias python='/usr/bin/python3'$'
+    state=present
+    insertafter=EOF
+    create=True
+
+- name: Remove pi user
+  become: yes
+  user:
+    name: pi
+    state: absent
+    force: yes
+    remove: yes
+
+- name: Source bashrc
+  shell: source /home/{{ user }}/.bashrc
+  args:
+    executable: /bin/bash
+
+- name: Dependencies installation
+  apt: name={{ item }} update_cache=yes state=latest
+  become: yes
+  with_items:
+    - git
+    - htop
+    - vim

@@ -1,0 +1,15 @@
+[manager]
+192.168.1.67
+
+[workers]
+192.168.1.2
+192.168.1.3
+192.168.1.4
+
+[all:vars]
+user=your-user
+k3s_version=v1.17.5+k3s1
+systemd_dir=/etc/systemd/system
+master_ip="{{ hostvars[groups['manager'][0]]['ansible_host'] | default(groups['manager'][0]) }}"
+extra_server_args=""
+extra_agent_args=""

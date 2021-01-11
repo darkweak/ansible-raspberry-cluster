@@ -1,0 +1,25 @@
+---
+- name: Installation du manager
+  hosts: all
+  gather_facts: no
+  roles:
+    - common
+    - prereq
+    - download
+    - raspberrypi
+
+- hosts: manager
+  become: yes
+  vars:
+    type: manager
+  roles:
+    - utils
+    - k3s/master
+
+- hosts: workers
+  become: yes
+  vars:
+    type: workers
+  roles:
+    - utils
+    - k3s/node
